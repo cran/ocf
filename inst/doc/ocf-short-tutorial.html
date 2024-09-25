@@ -340,93 +340,223 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<p>In this tutorial, we show how to use <code>ocf</code> to estimate the
-conditional choice probabilities and the covariates’ marginal effects,
-and conduct inference about these statistical targets. For illustration
-purposes, we use the synthetic data set provided in the <code>orf</code>
-package:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Load data from orf package.</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1986</span>)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(orf)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(odata)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(odata[, <span class="dv">1</span>])</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(odata[, <span class="sc">-</span><span class="dv">1</span>])</span></code></pre></div>
+<p>In this tutorial, we show how to use the <code>ocf</code> package to
+estimate and make inference about the conditional choice probabilities
+and the covariates’ marginal effects.</p>
+<p>Before diving in the coding, we provide an overview of the
+statistical problem at hand.</p>
+<div id="ordered-choice-models" class="section level2">
+<h2>Ordered Choice Models</h2>
+<p>We postulate the existence of a latent and continuous outcome
+variable <span class="math inline">\(Y_i^*\)</span>, assumed to obey the
+following regression model:</p>
+<p><span class="math display">\[ Y_i^* = g \left( X_i \right) +
+\epsilon_i  \]</span> where <span class="math inline">\(X_i\)</span>
+consists of a set of raw covariates, <span class="math inline">\(g
+\left( \cdot \right)\)</span> is a potentially non-linear regression
+function, and <span class="math inline">\(\epsilon_i\)</span> is
+independent of <span class="math inline">\(X_i\)</span>.</p>
+<p>An observational rule links the observed outcome <span class="math inline">\(Y_i\)</span> to the latent outcome <span class="math inline">\(Y_{i}^*\)</span> using unknown threshold
+parameters <span class="math inline">\(- \infty = \zeta_0 &lt; \zeta_1
+&lt; \dots &lt; \zeta_{M - 1} &lt; \zeta_M = \infty\)</span> that define
+intervals on the support of <span class="math inline">\(Y_i^*\)</span>,
+with each interval corresponding to one of the <span class="math inline">\(M\)</span> categories or classes of <span class="math inline">\(Y_i\)</span>:</p>
+<p><span class="math display">\[ \zeta_{m - 1} &lt; Y_i^* \leq \zeta_{m}
+\implies Y_i = m, \quad m = 1, \dots, M \]</span></p>
+<p>The statistical targets of interest are the conditional choice
+probabilities:</p>
+<p><span class="math display">\[ p_m \left( X_i \right) := \mathbb{P}
+\left( Y_i = m | X_i \right) \]</span></p>
+<p>and the marginal effect of the <span class="math inline">\(j\)</span>-th covariate on <span class="math inline">\(p_m \left( \cdot \right)\)</span>:</p>
+<p><span class="math display">\[
+\nabla^j p_m \left( x \right) :=
+  \begin{cases}
+    \frac{\partial p_m \left( x \right)}{\partial x_j}, &amp; \text{if }
+x_j \text{ is continuous}  \\
+    p_m \left( \lceil x_j \rceil \right) - p_m \left( \lfloor x_j
+\rfloor \right), &amp; \text{if } x_j \text{ is discrete}
+  \end{cases}
+\]</span> where <span class="math inline">\(x_j\)</span> is the <span class="math inline">\(j\)</span>-th element of the vector <span class="math inline">\(x\)</span> and <span class="math inline">\(\lceil
+x_j \rceil\)</span> and <span class="math inline">\(\lfloor x_j
+\rfloor\)</span> correspond to <span class="math inline">\(x\)</span>
+with its <span class="math inline">\(j\)</span>-th element rounded up
+and down to the closest integer.</p>
+</div>
+<div id="code" class="section level2">
+<h2>Code</h2>
+<p>For illustration purposes, we generate a synthetic data set. Details
+about the employed DGP can be retrieved by running
+<code>help(generate_ordered_data)</code>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="do">## Generate synthetic data.</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1986</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">generate_ordered_data</span>(n)</span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>sample <span class="ot">&lt;-</span> data<span class="sc">$</span>sample</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>Y <span class="ot">&lt;-</span> sample<span class="sc">$</span>Y</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>X <span class="ot">&lt;-</span> sample[, <span class="sc">-</span><span class="dv">1</span>]</span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a><span class="fu">table</span>(Y)</span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a><span class="co">#&gt; Y</span></span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a><span class="co">#&gt;  1  2  3 </span></span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a><span class="co">#&gt; 31 37 32</span></span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a><span class="fu">head</span>(X)</span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a><span class="co">#&gt;            x1 x2         x3 x4            x5 x6</span></span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a><span class="co">#&gt; 1 -0.04625141  1 -1.7879732  0 -1.0515868012  1</span></span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a><span class="co">#&gt; 2  0.28000082  0 -1.1553030  0 -0.4285613418  0</span></span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a><span class="co">#&gt; 3  0.25317063  1  1.6677330  0  0.1621459072  0</span></span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a><span class="co">#&gt; 4 -0.96411077  0 -0.1587051  0  0.3587438820  0</span></span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="co">#&gt; 5  0.49222664  0 -1.4020533  1  0.0004035277  0</span></span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a><span class="co">#&gt; 6 -0.69874551  1 -0.4450061  0 -0.3183447897  0</span></span></code></pre></div>
 <div id="conditional-probabilities" class="section level3">
 <h3>Conditional Probabilities</h3>
-<p>The <code>ocf</code> function constructs a collection of forests, one
-for each category of <code>y</code> (three in this case). We can then
-use the forests to predict out-of-sample conditional probabilities using
-the <code>predict</code> method. By default, <code>predict</code>
-returns a matrix with the predicted probabilities and a vector of
-predicted class labels (each observation is labelled to the
-highest-probability class).</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Training-test split.</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>train_idx <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">seq_len</span>(<span class="fu">length</span>(y)), <span class="fu">floor</span>(<span class="fu">length</span>(y) <span class="sc">*</span> <span class="fl">0.5</span>))</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>y_tr <span class="ot">&lt;-</span> y[train_idx]</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>X_tr <span class="ot">&lt;-</span> X[train_idx, ]</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>y_test <span class="ot">&lt;-</span> y[<span class="sc">-</span>train_idx]</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>X_test <span class="ot">&lt;-</span> X[<span class="sc">-</span>train_idx, ]</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="do">## Fit ocf on training sample. Use default settings.</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>forests <span class="ot">&lt;-</span> <span class="fu">ocf</span>(y_tr, X_tr)</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="do">## Summary of data and tuning parameters.</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(forests)</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="do">## Out-of-sample predictions.</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>predictions <span class="ot">&lt;-</span> <span class="fu">predict</span>(forests, X_test)</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(predictions<span class="sc">$</span>probabilities)</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(y_test, predictions<span class="sc">$</span>classification)</span></code></pre></div>
-<p>We can also implement honesty, which is a necessary condition to
-produce asymptotically normal and consistent predictions. In the
-following, we set <code>honesty = TRUE</code> to construct honest
-forests.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Honest forests.</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>honest_forests <span class="ot">&lt;-</span> <span class="fu">ocf</span>(y_tr, X_tr, <span class="at">honesty =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>honest_predictions <span class="ot">&lt;-</span> <span class="fu">predict</span>(honest_forests, X_test)</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="do">## Compare predictions with adaptive fit.</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(<span class="fu">head</span>(predictions<span class="sc">$</span>probabilities), <span class="fu">head</span>(honest_predictions<span class="sc">$</span>probabilities))</span></code></pre></div>
-<p>To estimate standard errors for the predicted probabilities, we set
-<code>inference = TRUE</code>. This requires also to set
-<code>honesty = TRUE</code>: the formula for the variance is valid only
-for honest predictions. The estimation of standard errors considerably
-slows down the routine. However, we can increase the number of threads
-used to construct the forests to speed up the routine.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Compute standard errors.</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>honest_forests <span class="ot">&lt;-</span> <span class="fu">ocf</span>(y_tr, X_tr, <span class="at">honesty =</span> <span class="cn">TRUE</span>, <span class="at">inference =</span> <span class="cn">TRUE</span>, <span class="at">n.threads =</span> <span class="dv">0</span>) <span class="co"># Use all CPUs.</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(honest_forests<span class="sc">$</span>predictions<span class="sc">$</span>standard.errors)</span></code></pre></div>
+<p>To estimate the conditional probabilities, the <code>ocf</code>
+function constructs a collection of forests, one for each category of
+<code>Y</code> (three in this case). We can then use the forests to
+predict out-of-sample using the <code>predict</code> method.
+<code>predict</code> returns a matrix with the predicted probabilities
+and a vector of predicted class labels (each observation is labelled to
+the highest-probability class).</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="do">## Training-test split.</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>train_idx <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">seq_len</span>(<span class="fu">length</span>(Y)), <span class="fu">floor</span>(<span class="fu">length</span>(Y) <span class="sc">*</span> <span class="fl">0.5</span>))</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>Y_tr <span class="ot">&lt;-</span> Y[train_idx]</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>X_tr <span class="ot">&lt;-</span> X[train_idx, ]</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>Y_test <span class="ot">&lt;-</span> Y[<span class="sc">-</span>train_idx]</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>X_test <span class="ot">&lt;-</span> X[<span class="sc">-</span>train_idx, ]</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="do">## Fit ocf on training sample. Use default settings.</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>forests <span class="ot">&lt;-</span> <span class="fu">ocf</span>(Y_tr, X_tr)</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="do">## Summary of data and tuning parameters.</span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="fu">summary</span>(forests)</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt; Call: </span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co">#&gt; ocf(Y_tr, X_tr) </span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#&gt; Data info: </span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co">#&gt; Full sample size:   50 </span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co">#&gt; N. covariates:      6 </span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co">#&gt; Classes:            1 2 3 </span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="co">#&gt; Relative variable importance: </span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="co">#&gt;    x1    x2    x3    x4    x5    x6 </span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="co">#&gt; 0.353 0.059 0.266 0.092 0.206 0.024 </span></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a><span class="co">#&gt; Tuning parameters: </span></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a><span class="co">#&gt; N. trees:           2000 </span></span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a><span class="co">#&gt; mtry:               3 </span></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a><span class="co">#&gt; min.node.size       5 </span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="co">#&gt; Subsampling scheme: No replacement </span></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a><span class="co">#&gt; Honesty:            FALSE </span></span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a><span class="co">#&gt; Honest fraction:    0</span></span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a></span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="do">## Out-of-sample predictions.</span></span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a>predictions <span class="ot">&lt;-</span> <span class="fu">predict</span>(forests, X_test)</span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a></span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a><span class="fu">head</span>(predictions<span class="sc">$</span>probabilities)</span>
+<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a><span class="co">#&gt;         P(Y=1)    P(Y=2)     P(Y=3)</span></span>
+<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a><span class="co">#&gt; [1,] 0.4224274 0.4548215 0.12275111</span></span>
+<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a><span class="co">#&gt; [2,] 0.4786262 0.4133636 0.10801015</span></span>
+<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a><span class="co">#&gt; [3,] 0.1446138 0.4064470 0.44893918</span></span>
+<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a><span class="co">#&gt; [4,] 0.6215123 0.3249310 0.05355674</span></span>
+<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a><span class="co">#&gt; [5,] 0.4359897 0.3503095 0.21370084</span></span>
+<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a><span class="co">#&gt; [6,] 0.6224514 0.3216924 0.05585619</span></span>
+<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a></span>
+<span id="cb2-47"><a href="#cb2-47" tabindex="-1"></a><span class="fu">table</span>(Y_test, predictions<span class="sc">$</span>classification)</span>
+<span id="cb2-48"><a href="#cb2-48" tabindex="-1"></a><span class="co">#&gt;       </span></span>
+<span id="cb2-49"><a href="#cb2-49" tabindex="-1"></a><span class="co">#&gt; Y_test  1  2  3</span></span>
+<span id="cb2-50"><a href="#cb2-50" tabindex="-1"></a><span class="co">#&gt;      1 11  4  1</span></span>
+<span id="cb2-51"><a href="#cb2-51" tabindex="-1"></a><span class="co">#&gt;      2  7  4  8</span></span>
+<span id="cb2-52"><a href="#cb2-52" tabindex="-1"></a><span class="co">#&gt;      3  3  1 11</span></span></code></pre></div>
+<p>To produce consistent and asymptotically normal predictions, we need
+to set the <code>honesty</code> argument to TRUE. This makes the
+<code>ocf</code> function using different parts of the training sample
+to construct the forests and compute the predictions.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="do">## Honest forests.</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>honest_forests <span class="ot">&lt;-</span> <span class="fu">ocf</span>(Y_tr, X_tr, <span class="at">honesty =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>honest_predictions <span class="ot">&lt;-</span> <span class="fu">predict</span>(honest_forests, X_test)</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="fu">head</span>(honest_predictions<span class="sc">$</span>probabilities)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt;         P(Y=1)    P(Y=2)    P(Y=3)</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt; [1,] 0.3780979 0.3260178 0.2958843</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt; [2,] 0.3907848 0.3341460 0.2750692</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt; [3,] 0.2350265 0.4046100 0.3603635</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt; [4,] 0.4247656 0.3567507 0.2184836</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt; [5,] 0.3556529 0.3095442 0.3348028</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt; [6,] 0.4039818 0.3383057 0.2577125</span></span></code></pre></div>
+<p>To estimate standard errors for the predicted probabilities, we need
+to set the <code>inference</code> argument to TRUE. However, this works
+only if <code>honesty</code> is TRUE, as the formula for the variance is
+valid only for honest predictions. Notice that the estimation of the
+standard errors can considerably slow down the routine. However, we can
+increase the number of threads used to construct the forests by using
+the <code>n.threads</code> argument.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="do">## Compute standard errors. Do not run.</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co"># honest_forests &lt;- ocf(Y_tr, X_tr, honesty = TRUE, inference = TRUE, n.threads = 0) # Use all CPUs.</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co"># head(honest_forests$predictions$standard.errors)</span></span></code></pre></div>
 </div>
 <div id="covariates-marginal-effects" class="section level3">
 <h3>Covariates’ Marginal Effects</h3>
-<p>The <code>marginal_effects</code> function post-processes the
-predictions to estimate mean marginal effects, marginal effects at the
-mean, or marginal effects at the median, according to the
-<code>eval</code> argument. In the following, we construct our forests
-in the training sample and use them to estimate the marginal effects at
-the mean in the test sample.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Fit ocf on training sample.</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>forests <span class="ot">&lt;-</span> <span class="fu">ocf</span>(y_tr, X_tr)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="do">## Marginal effects at the mean on test sample.</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>me_atmean <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(forests, <span class="at">data =</span> X_test, <span class="at">eval =</span> <span class="st">&quot;atmean&quot;</span>)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(me_atmean)</span></code></pre></div>
-<p>As before, we can set <code>inference = TRUE</code> to estimate the
-standard errors. Again, this requires the use of honest forests and
-considerably slows down the routine.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Honest forests.</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>honest_forests <span class="ot">&lt;-</span> <span class="fu">ocf</span>(y_tr, X_tr, <span class="at">honesty =</span> <span class="cn">TRUE</span>) <span class="co"># Notice we do not need inference here!</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="do">## Compute standard errors.</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>honest_me_atmean <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(honest_forests, <span class="at">data =</span> X_test , <span class="at">eval =</span> <span class="st">&quot;atmean&quot;</span>, <span class="at">inference =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="do">## LATEX.</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(honest_me_atmean, <span class="at">latex =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<p>To estimate the covariates’ marginal effects, we can post-process the
+conditional probability predictions. This is performed by the
+<code>marginal_effects</code> function that can estimate mean marginal
+effects, marginal effects at the mean, and marginal effects at the
+median, according to the <code>eval</code> argument.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="do">## Marginal effects at the mean.</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>me_atmean <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(forests, <span class="at">eval =</span> <span class="st">&quot;atmean&quot;</span>) <span class="co"># Try also &#39;eval = &quot;atmean&quot;&#39; and &#39;eval = &quot;mean&quot;&#39;.</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="fu">print</span>(me_atmean) <span class="co"># Try also &#39;latex = TRUE&#39;.</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; ocf marginal effects results </span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; Data info: </span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; Number of classes:    3 </span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt; Sample size:          50 </span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt; Tuning parameters: </span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt; Evaluation:           atmean </span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt; Bandwidth:            0.1 </span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt; Number of trees:      2000 </span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt; Honest forests:       FALSE </span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt; Honesty fraction:     0 </span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt; Marginal Effects: </span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;    P&#39;(Y=1) P&#39;(Y=2) P&#39;(Y=3)</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt; x1  -0.100  -0.311   0.411</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt; x2  -0.078   0.065   0.013</span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt; x3  -0.048  -0.013   0.060</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt; x4  -0.024  -0.175   0.198</span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt; x5   0.033   0.049  -0.082</span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt; x6  -0.006   0.010  -0.004</span></span></code></pre></div>
+<p>As before, we can set the <code>inference</code> argument to TRUE to
+estimate the standard errors. Again, this requires the use of honest
+forests and can considerably slow down the routine.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="do">## Compute standard errors.</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>honest_me_atmean <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(honest_forests, <span class="at">eval =</span> <span class="st">&quot;atmean&quot;</span>, <span class="at">inference =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="fu">print</span>(honest_me_atmean) <span class="co"># Try also &#39;latex = TRUE&#39;.</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt; ocf marginal effects results </span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt; Data info: </span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt; Number of classes:    3 </span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt; Sample size:          50 </span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co">#&gt; Tuning parameters: </span></span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co">#&gt; Evaluation:           atmean </span></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co">#&gt; Bandwidth:            0.1 </span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co">#&gt; Number of trees:      2000 </span></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co">#&gt; Honest forests:       TRUE </span></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt; Honesty fraction:     0.5 </span></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a><span class="co">#&gt; Marginal Effects: </span></span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="co">#&gt;    P&#39;(Y=1) P&#39;(Y=2) P&#39;(Y=3)</span></span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a><span class="co">#&gt; x1  -0.017   0.000   0.017</span></span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a><span class="co">#&gt; x2  -0.036   0.013   0.023</span></span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a><span class="co">#&gt; x3  -0.011   0.009   0.002</span></span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a><span class="co">#&gt; x4  -0.014  -0.053   0.067</span></span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a><span class="co">#&gt; x5  -0.006   0.026  -0.020</span></span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a><span class="co">#&gt; x6  -0.002  -0.003   0.005</span></span></code></pre></div>
+</div>
 </div>
 
 

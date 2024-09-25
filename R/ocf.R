@@ -3,7 +3,7 @@
 #' Nonparametric estimator for ordered non-numeric outcomes. The estimator modifies a standard random forest
 #' splitting criterion to build a collection of forests, each estimating the conditional probability of a single class.
 #'
-#' @param y Outcome vector.
+#' @param Y Outcome vector.
 #' @param X Covariate matrix (no intercept).
 #' @param n.trees Number of trees.
 #' @param alpha Controls the balance of each split. Each split leaves at least a fraction \code{alpha} of observations in the parent node on each side of the split.
@@ -21,53 +21,67 @@
 #' Object of class \code{ocf}.
 #' 
 #' @examples 
-#' ## Load data from orf package.
+#' \donttest{## Generate synthetic data.
 #' set.seed(1986)
 #' 
-#' library(orf)
-#' data(odata)
-#' odata <- odata[1:100, ] # Subset to reduce elapsed time.
-#' 
-#' y <- as.numeric(odata[, 1])
-#' X <- as.matrix(odata[, -1])
+#' data <- generate_ordered_data(100)
+#' sample <- data$sample
+#' Y <- sample$Y
+#' X <- sample[, -1]
 #' 
 #' ## Training-test split.
-#' train_idx <- sample(seq_len(length(y)), floor(length(y) * 0.5))
+#' train_idx <- sample(seq_len(length(Y)), floor(length(Y) * 0.5))
 #' 
-#' y_tr <- y[train_idx]
+#' Y_tr <- Y[train_idx]
 #' X_tr <- X[train_idx, ]
 #' 
-#' y_test <- y[-train_idx]
+#' Y_test <- Y[-train_idx]
 #' X_test <- X[-train_idx, ]
 #' 
 #' ## Fit ocf on training sample.
-#' forests <- ocf(y_tr, X_tr)
+#' forests <- ocf(Y_tr, X_tr)
 #' 
 #' ## We have compatibility with generic S3-methods.
 #' print(forests)
 #' summary(forests)
 #' predictions <- predict(forests, X_test)
 #' head(predictions$probabilities)
-#' table(y_test, predictions$classification)
-#' \donttest{
+#' table(Y_test, predictions$classification)
+#' 
 #' ## Compute standard errors. This requires honest forests.
-#' honest_forests <- ocf(y_tr, X_tr, honesty = TRUE, inference = TRUE)
-#' head(honest_forests$predictions$standard.errors)}
+#' honest_forests <- ocf(Y_tr, X_tr, honesty = TRUE, inference = TRUE)
+#' head(honest_forests$predictions$standard.errors)
+#' 
+#' ## Marginal effects.
+#' me <- marginal_effects(forests, eval = "atmean")
+#' print(me)
+#' print(me, latex = TRUE)
+#' 
+#' ## Compute standard errors. This requires honest forests.
+#' honest_me <- marginal_effects(honest_forests, eval = "atmean", inference = TRUE)
+#' honest_me$standard.errors
+#' print(honest_me, latex = TRUE)}
 #' 
 #' @import utils stats orf
 #' @importFrom Rcpp evalCpp
 #' @useDynLib ocf
 #' 
+#' @author Riccardo Di Francesco
+#'
+#' @references
+#' \itemize{
+#'   \item Di Francesco, R. (2023). Ordered Correlation Forest. arXiv preprint \href{https://arxiv.org/abs/2309.08755}{arXiv:2309.08755}.
+#' }
+#' 
 #' @seealso \code{\link{marginal_effects}}
 #' 
-#' @author Riccardo Di Francesco
-#' 
 #' @export
-ocf <- function(y = NULL, X = NULL,
-                 honesty = FALSE, honesty.fraction = 0.5, inference = FALSE, alpha = 0,
-                 n.trees = 2000, mtry = ceiling(sqrt(ncol(X))), min.node.size = 5, max.depth = 0, 
-                 replace = FALSE, sample.fraction = ifelse(replace, 1, 0.5), n.threads = 1) {
+ocf <- function(Y = NULL, X = NULL,
+                honesty = FALSE, honesty.fraction = 0.5, inference = FALSE, alpha = 0,
+                n.trees = 2000, mtry = ceiling(sqrt(ncol(X))), min.node.size = 5, max.depth = 0, 
+                replace = FALSE, sample.fraction = ifelse(replace, 1, 0.5), n.threads = 1) {
   ## 0.) Defaults for variables not needed.
+  y <- Y
   splitrule.num <- 1; treetype <- 3; probability <- FALSE
   importance.mode <- 1; scale.permutation.importance <- FALSE; local.importance <- FALSE
   respect.unordered.factors <- "ignore"; unordered.factor.variables <- c("0", "0"); use.unordered.factor.variables <- FALSE
@@ -120,8 +134,8 @@ ocf <- function(y = NULL, X = NULL,
     
     train_sample <- honest_split$train_sample
     honest_sample <- honest_split$honest_sample
-    colnames(train_sample) <- c("y", independent.variable.names)
-    colnames(honest_sample) <- c("y", independent.variable.names)
+    colnames(train_sample) <- c("Y", independent.variable.names)
+    colnames(honest_sample) <- c("Y", independent.variable.names)
     
     y_train <- train_sample[, 1]
     x_train <- as.data.frame(train_sample[, -1])
@@ -133,7 +147,7 @@ ocf <- function(y = NULL, X = NULL,
   } else { 
     train_sample <- data.frame(y, X)
     honest_sample <- list()
-    colnames(train_sample) <- c("y", independent.variable.names)
+    colnames(train_sample) <- c("Y", independent.variable.names)
     
     y_train <- train_sample[, 1]
     x_train <- as.data.frame(train_sample[, -1])

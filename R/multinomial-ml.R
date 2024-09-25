@@ -2,7 +2,7 @@
 #' 
 #' Estimation strategy to estimate conditional choice probabilities for ordered non-numeric outcomes.
 #'
-#' @param y Outcome vector.
+#' @param Y Outcome vector.
 #' @param X Covariate matrix (no intercept).
 #' @param learner String, either \code{"forest"} or \code{"l1"}. Selects the base learner to estimate each expectation.
 #' @param scale Logical, whether to scale the covariates. Ignored if \code{learner} is not \code{"l1"}.
@@ -11,29 +11,26 @@
 #' Object of class \code{mml}.
 #' 
 #' @examples 
-#' \donttest{
-#' ## Load data from orf package.
+#' \donttest{## Generate synthetic data.
 #' set.seed(1986)
 #' 
-#' library(orf)
-#' data(odata)
-#' odata <- odata[1:100, ] # Subset to reduce elapsed time.
-#' 
-#' y <- as.numeric(odata[, 1])
-#' X <- as.matrix(odata[, -1])
+#' data <- generate_ordered_data(100)
+#' sample <- data$sample
+#' Y <- sample$Y
+#' X <- sample[, -1]
 #' 
 #' ## Training-test split.
-#' train_idx <- sample(seq_len(length(y)), floor(length(y) * 0.5))
+#' train_idx <- sample(seq_len(length(Y)), floor(length(Y) * 0.5))
 #' 
-#' y_tr <- y[train_idx]
+#' Y_tr <- Y[train_idx]
 #' X_tr <- X[train_idx, ]
 #' 
-#' y_test <- y[-train_idx]
+#' Y_test <- Y[-train_idx]
 #' X_test <- X[-train_idx, ]
 #' 
 #' ## Fit multinomial machine learning on training sample using two different learners.
-#' multinomial_forest <- multinomial_ml(y_tr, X_tr, learner = "forest")
-#' multinomial_l1 <- multinomial_ml(y_tr, X_tr, learner = "l1")
+#' multinomial_forest <- multinomial_ml(Y_tr, X_tr, learner = "forest")
+#' multinomial_l1 <- multinomial_ml(Y_tr, X_tr, learner = "l1")
 #' 
 #' ## Predict out of sample.
 #' predictions_forest <- predict(multinomial_forest, X_test)
@@ -49,7 +46,7 @@
 #' 
 #' This allows us to estimate each expectation separately using any regression algorithm to get an estimate of conditional probabilities.\cr
 #' 
-#' \code{\link{multinomial_ml}} combines this strategy with either regression forests or penalized logistic regression with an L1 penalty,
+#' \code{\link{multinomial_ml}} combines this strategy with either regression forests or penalized logistic regressions with an L1 penalty,
 #' according to the user-specified parameter \code{learner}.\cr
 #' 
 #' If \code{learner == "l1"}, the penalty parameters are chosen via 10-fold cross-validation 
@@ -57,15 +54,21 @@
 #' have zero mean and unit variance.
 #' 
 #' @import ranger glmnet
-#'  
-#' @seealso \code{\link{ordered_ml}}, \code{\link{ocf}}
 #' 
 #' @author Riccardo Di Francesco
 #' 
+#' @references
+#' \itemize{
+#'   \item Di Francesco, R. (2023). Ordered Correlation Forest. arXiv preprint \href{https://arxiv.org/abs/2309.08755}{arXiv:2309.08755}.
+#' }
+#' 
+#' @seealso \code{\link{ordered_ml}}, \code{\link{ocf}}
+#' 
 #' @export
-multinomial_ml <- function(y = NULL, X = NULL,
+multinomial_ml <- function(Y = NULL, X = NULL,
                            learner = "forest", scale = TRUE) {
   ## 0.) Handling inputs and checks.
+  y <- Y
   check_x_y(X, y)
   if (!(learner %in% c("forest", "l1"))) stop("Invalid 'learner'. This must be either 'forest' or 'l1'.", call. = FALSE)
   if (!is.logical(scale)) stop("Invalid 'scale'. This must be logical.", call. = FALSE)
@@ -106,7 +109,7 @@ multinomial_ml <- function(y = NULL, X = NULL,
                  "learner" = learner,
                  "scaling" = scale,
                  "X" = X,
-                 "y" = y)
+                 "Y" = y)
   class(output) <- "mml"
   
   ## 8.) Output.
