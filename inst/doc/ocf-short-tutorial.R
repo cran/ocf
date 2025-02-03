@@ -1,7 +1,7 @@
 ## ----setup, include = FALSE---------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "R>"
 )
 
 library(ocf)
@@ -61,8 +61,19 @@ head(honest_predictions$probabilities)
 me_atmean <- marginal_effects(forests, eval = "atmean") # Try also 'eval = "atmean"' and 'eval = "mean"'.
 print(me_atmean) # Try also 'latex = TRUE'.
 
+plot(me_atmean)
+
+## ----adaptive-me-target, eval = TRUE------------------------------------------
+## Marginal effects at the mean.
+target_covariates <- list("x1" = "continuous", "x2" = "discrete", "x4" = "discrete")
+me_atmean <- marginal_effects(forests, eval = "atmean", these_covariates = target_covariates) 
+
+plot(me_atmean)
+
 ## ----honest-me, eval = TRUE---------------------------------------------------
 ## Compute standard errors.
 honest_me_atmean <- marginal_effects(honest_forests, eval = "atmean", inference = TRUE)
 print(honest_me_atmean) # Try also 'latex = TRUE'.
+
+plot(honest_me_atmean)
 

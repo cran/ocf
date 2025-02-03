@@ -7,7 +7,7 @@
  
 R package to implement *ordered correlation forest*, a machine learning estimator specifically optimized for predictive modeling of ordered non-numeric outcomes. 
 
-`ocf` provides forest-based estimation of the conditional choice probabilities and the covariates’ marginal effects. Under an "honesty" condition, the estimates are consistent and asymptotically normal and standard errors can be obtained by leveraging the weight-based representation of the random forest predictions. Please reference the use as [Di Francesco (2023)](https://arxiv.org/abs/2309.08755).
+`ocf` provides forest-based estimation of the conditional choice probabilities and the covariates’ marginal effects. Under an "honesty" condition, the estimates are consistent and asymptotically normal and standard errors can be obtained by leveraging the weight-based representation of the random forest predictions. Please reference the use as [Di Francesco (2025)](https://doi.org/10.1080/07474938.2024.2429596).
 
 To get started, please check the online [short tutorial](https://riccardo-df.github.io/ocf/articles/ocf-short-tutorial.html).
 
@@ -31,20 +31,20 @@ devtools::install_github("riccardo-df/ocf") # run install.packages("devtools") i
 <i>Annals of Statistics</i>, 47(2).
 [<a href="https://doi.org/10.1214/18-AOS1709">paper</a>]
 
-- Di Francesco, R. (2023). 
+- Di Francesco, R. (2025). 
 <b>Ordered Correlation Forest.</b>
-<i>arXiv preprint arXiv:2309.08755</i>.
-[<a href="https://doi.org/10.48550/arXiv.2309.08755">paper</a>]
+<i>Econometric Reviews</i>.
+[<a href="https://doi.org/10.1080/07474938.2024.2429596">paper</a>]
 
 - Lechner, M., & Mareckova, J. (2022). 
 <b>Modified Causal Forest.</b>
 <i>arXiv preprint arXiv:2209.03744</i>.
 [<a href="https://doi.org/10.48550/arXiv.2209.03744">paper</a>]
 
-- Lechner, M., & Okasa, G. (2019). 
+- Lechner, M., & Okasa, G. (2024). 
 <b>Random Forest Estimation of the Ordered Choice Model.</b>
-<i>arXiv preprint arXiv:1907.02436</i>.
-[<a href="https://doi.org/10.48550/arXiv.1907.02436">paper</a>]
+<i>Empirical Economics</i>.
+[<a href="https://doi.org/10.1007/s00181-024-02646-4">paper</a>]
 
 - Peracchi, F. (2014). 
 <b>Econometric methods for ordered responses: Some recent developments.</b>

@@ -41,14 +41,14 @@ print(me)
 print(me, latex = TRUE)
 
 ## Add standard errors.
-honest_forests <- ocf(Y, X, n.trees = 4000, honesty = TRUE)
+honest_forests <- ocf(Y, X, honesty = TRUE)
 honest_me <- marginal_effects(honest_forests, eval = "atmean", inference = TRUE)
 print(honest_me, latex = TRUE)}
 
 }
 \references{
 \itemize{
-  \item Di Francesco, R. (2023). Ordered Correlation Forest. arXiv preprint \href{https://arxiv.org/abs/2309.08755}{arXiv:2309.08755}.
+  \item Di Francesco, R. (2025). Ordered Correlation Forest. Econometric Reviews, 1–17. \doi{10.1080/07474938.2024.2429596}.
 }
 }
 \seealso{
